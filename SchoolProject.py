@@ -1,34 +1,40 @@
 import cv2
-import imutils
 import numpy as np
 import keyboard
 from imutils.video import FPS
 import time
 
+################
+WORK IN PROGRESS
+################
+
+
 print("press 'r' to run the program 'q' to exit\n")
 
 while True:
-
     if keyboard.is_pressed('r'):
-        print(f'\nrunning, please wait')
+        print('\n[INFO] running, please wait\n')
+        print('\n[INFO] Versions installed:')
+
         while True:
             if keyboard.is_pressed('q'):
-                print('Program terminated')
-                break
+                print('\n[INFO] Program terminated')
+                break  
 
-            print('[INFO] cv2 version:', cv2.__version__)
-            print('[INFO] numpy version:', np.__version__)
+            print('[INFO] cv2:', cv2.__version__)
+            print('[INFO] numpy:', np.__version__)
 
             fps = FPS().start()
 
 
             def detect_apples(frame):
+                ################################################################
+                # TODO get frame and how big user wants it to be
 
-                # get frame and how big user wants it to be
-
-                frame_height = 1080
-                frame_width = 1080
-
+                frame_height = #input
+                frame_width = #input
+                
+                #################################################################
                 # Convert to HSV color space
                 hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
 
@@ -79,21 +85,23 @@ while True:
 
             VideoFeed = cv2.VideoCapture(0 + cv2.CAP_DSHOW)
 
+
             while True:
-                # Read a frame from feed for the object
+                # Read a frame from video feed for the object
                 ret, frame = VideoFeed.read()
 
                 if not ret:
                     break
 
-                # Detect apples in the frame
+                # Detect the apples in the frame
                 frame_with_apples = detect_apples(frame)
 
-                # Show the frame with detected apples
+                # Show the frame with apples
                 cv2.imshow('Video Feed', frame_with_apples)
 
-                # Break the loop if 'q' is pressed
-                if cv2.waitKey(1) & 0xFF == ord('f'):
+                # Break if 'q' is pressed
+                if cv2.waitKey(1) & 0xFF == ord('q'):
+                    print("[INFO]Program Terminated")
                     break
 
                 fps.update()
@@ -110,3 +118,8 @@ while True:
             # close windows
             VideoFeed.release()
             cv2.destroyAllWindows()
+            break
+
+    elif keyboard.is_pressed('q'):
+        print('\n[INFO]Program Terminated')
+        break
