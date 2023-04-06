@@ -1,125 +1,140 @@
-import cv2
-import numpy as np
-import keyboard
+# Jared Mendoza, python-II Professor Harlow 2-16-2023
+# class project
+
+
+import os
+from imutils.video import VideoStream
 from imutils.video import FPS
+import numpy as np
+import argparse
+import imutils
 import time
+import cv2
+import keyboard
 
-################
-WORK IN PROGRESS
-################
+print("1. Input how big you want the frame. Ex 420x420, 720x720, 1080x1080, 1440x1440")
+print("2. Press 'r' to run the program or 'q' to exit\n")
 
-
-print("press 'r' to run the program 'q' to exit\n")
+frame_height = int(input("height: "))
+frame_width = int(input("width: "))
 
 while True:
     if keyboard.is_pressed('r'):
         print('\n[INFO] running, please wait\n')
         print('\n[INFO] Versions installed:')
+        print('[INFO] Getting Versions...\n')
 
-        while True:
-            if keyboard.is_pressed('q'):
-                print('\n[INFO] Program terminated')
-                break  
+        print('[INFO] cv2 version:', cv2.__version__)
+        print('[INFO] argparse version:', argparse.__version__)
+        print('[INFO] numpy version:', np.__version__)
 
-            print('[INFO] cv2:', cv2.__version__)
-            print('[INFO] numpy:', np.__version__)
+        # always the last one because it is the new line one
+        print('[INFO] imutils version:', imutils.__version__, '\n')
 
+        CLASSES = ["background", "aeroplane", "bicycle", "bird", "boat",
+                   "bottle", "bus", "car", "cat", "chair", "cow", "diningtable",
+                   "dog", "horse", "motorbike", "person", "pottedplant", "sheep",
+                   "sofa", "train", "tvmonitor", "apple"]
+
+        protxtfile = 'MobileNetSSD_deploy.prototxt.txt'
+        model_file = 'MobileNetSSD_deploy.caffemodel'
+
+        if not os.path.exists(protxtfile):
+            print("No protxtfile detected please check file location")
+            if not os.path.exists(model_file):
+                print("No model file detected check file location")
+        else:
+            net = cv2.dnn.readNetFromCaffe(protxtfile, model_file)
+
+            COLORS = np.random.uniform(0, 255, size=(len(CLASSES), 3))
+
+            # load our serialized model from disk
+            print("[INFO] loading model and video stream...\n")
+            net = cv2.dnn.readNetFromCaffe('MobileNetSSD_deploy.prototxt.txt', 'MobileNetSSD_deploy.caffemodel')
+
+            # initialize the video stream, allow the camera sensor to warmup,
+            # and initialize the FPS counter
+            vs = VideoStream(src=0).start()
+            time.sleep(2.0)
             fps = FPS().start()
 
-
-            def detect_apples(frame):
-                ################################################################
-                # TODO get frame and how big user wants it to be
-
-                frame_height = #input
-                frame_width = #input
-                
-                #################################################################
-                # Convert to HSV color space
-                hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-
-                # Define color range for red apples
-                lower_red = np.array([40, 100, 100])
-                upper_red = np.array([10, 255, 255])
-
-                # Define color range for green apples
-                lower_green = np.array([0, 50, 50])
-                upper_green = np.array([40, 215, 96])
-
-                # Threshold the HSV image to get only red and green colors
-                red_mask = cv2.inRange(hsv, lower_red, upper_red)
-                green_mask = cv2.inRange(hsv, lower_green, upper_green)
-
-                # Find contours in the masks
-                red_contours, _ = cv2.findContours(red_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-                green_contours, _ = cv2.findContours(green_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-                # Draw bounding boxes around detected red and green objects
-                for cnt in red_contours:
-                    x, y, w, h = cv2.boundingRect(cnt)
-                    cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 0, 255), 2)
-
-                for cnt in green_contours:
-                    x, y, w, h = cv2.boundingRect(cnt)
-                    cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
-
-                return frame
-
-
-            # Initialize the video feed object
-            camera_indexes = []
-            for i in range(10):
-                VideoFeed = cv2.VideoCapture(i)
-                if not VideoFeed.isOpened():
-                    break
-                camera_indexes.append(i)
-                VideoFeed.release()
-
-            # Print the list of available cameras
-            print("[INFO] Loading available cameras:")
-            for i in camera_indexes:
-                if camera_indexes is None:
-                    print("Error! no Cameras available :( ")
-                else:
-                    print(f"{i}: {cv2.VideoCapture(i).getBackendName()}")
-
-            VideoFeed = cv2.VideoCapture(0 + cv2.CAP_DSHOW)
-
-
+            # loop over the frames from the video stream
             while True:
-                # Read a frame from video feed for the object
-                ret, frame = VideoFeed.read()
+                # grab the frame from the threaded video stream and resize it
+                frame = vs.read()
+                frame = imutils.resize(frame, width=frame_width, height=frame_height)
 
-                if not ret:
-                    break
+                # grab the frame dimensions and convert it to a blob
+                (h, w) = frame.shape[:2]
+                blob = cv2.dnn.blobFromImage(cv2.resize(frame, (300, 300)),
+                                             0.007843, (300, 300), 127.5)
 
-                # Detect the apples in the frame
-                frame_with_apples = detect_apples(frame)
+                # pass the blob through the network and obtain the detections and
+                # predictions
+                net.setInput(blob)
+                detections = net.forward()
 
-                # Show the frame with apples
-                cv2.imshow('Video Feed', frame_with_apples)
+                # loop over the detections
+                for i in np.arange(0, detections.shape[2]):
+                    # extract the confidence (i.e., probability) associated with
+                    # the prediction
+                    confidence = detections[0, 0, i, 2]
 
-                # Break if 'q' is pressed
+                    # filter out weak detections by ensuring the `confidence` is
+                    # greater than the minimum confidence
+                    if confidence > 0.2:
+                        # extract the index of the class label from the
+                        # `detections`
+                        label_confidence = int(detections[0, 0, i, 1])
+
+                        # Check if the detected object is an apple
+                        if CLASSES[label_confidence] == "apple":
+                            box = detections[0, 0, i, 3:7] * np.array([w, h, w, h])
+                            (startX, startY, endX, endY) = box.astype("int")
+
+                            # draw the prediction on the frame
+                            label = "{}: {:.2f}%".format(CLASSES[label_confidence],
+                                                         confidence * 80)
+                            cv2.rectangle(frame, (startX, startY), (endX, endY),
+                                          COLORS[label_confidence], 2)
+                            y = startY - 15 if startY - 15 > 15 else startY + 15
+                            cv2.putText(frame, label, (startX, y),
+                                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, COLORS[label_confidence], 2)
+                        else:
+                            box = detections[0, 0, i, 3:7] * np.array([w, h, w, h])
+                        (startX, startY, endX, endY) = box.astype("int")
+
+                        # draw the "This is not an apple" message on the frame
+                        label = "This is not an apple"
+                        cv2.rectangle(frame, (startX, startY), (endX, endY),
+                                      (0, 255, 255), 2)
+                        y = startY - 15 if startY - 15 > 15 else startY + 15
+                        cv2.putText(frame, label, (startX, y),
+                                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
+
+
+                # show the output frame
+                cv2.imshow("Frame", frame)
+                key = cv2.waitKey(1) & 0xFF
+
+                # if the `q` key was pressed, break from the loop
                 if cv2.waitKey(1) & 0xFF == ord('q'):
-                    print("[INFO]Program Terminated")
+                    print("[INFO] Program Terminated")
                     break
 
+                # update the FPS counter
                 fps.update()
 
             # stop the timer and display FPS information
             fps.stop()
-
-            print("[After action report] elapsed time: {:.2f}".format(fps.elapsed()))
-            print("[After action report] FPS: {:.2f}".format(fps.fps()))
+            print("[INFO] elapsed time: {:.2f} seconds".format(fps.elapsed()))
+            print("[INFO] approx  FPS: {:.2f}".format(fps.fps()))
 
             # do a bit of cleanup
             cv2.destroyAllWindows()
-
-            # close windows
-            VideoFeed.release()
-            cv2.destroyAllWindows()
+            vs.stop()
             break
 
     elif keyboard.is_pressed('q'):
-        print('\n[INFO]Program Terminated')
+        print('\n[INFO] Program Terminated')
         break
